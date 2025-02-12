@@ -38,12 +38,42 @@ const useFundEscrowDialog = ({
     resolver: zodResolver(formSchema),
     defaultValues: {
       amount: "",
+      paymentMethod: "",
     },
   });
 
   const onSubmit = async (payload: z.infer<typeof formSchema>) => {
     setIsFundingEscrow(true);
 
+    if (payload.paymentMethod === "card") {
+      payByMoonpay(payload);
+    } else {
+      payByWallet(payload);
+    }
+  };
+
+  const payByMoonpay = async (payload: z.infer<typeof formSchema>) => {
+    const deployedMoonPayUrl = `https://buy-sandbox.moonpay.com/?apiKey=${process.env.NEXT_PUBLIC_MOONPAY_API_KEY}&theme=dark&defaultCurrencyCode=eth&baseCurrencyAmount=${payload.amount}&colorCode=%237d01ff`;
+
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams({
+      contractId: selectedEscrow?.contractId || "",
+      amount: payload.amount,
+      engagementId: selectedEscrow?.engagementId || "",
+      callbackUrl: `${window.location.origin}/api/moonpay-callback`,
+    });
+
+    const fullUrl = `${deployedMoonPayUrl}&${params.toString()}`;
+
+    window.open(
+      fullUrl,
+      "moonpayPopup",
+      "width=500,height=600,scrollbars=yes,resizable=yes",
+    );
+  };
+
+  const payByWallet = async (payload: z.infer<typeof formSchema>) => {
     try {
       const data = await fundEscrow({
         signer: address,
